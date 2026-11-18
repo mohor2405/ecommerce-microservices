@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Aggregator POM: lets you build every microservice with ONE command from this folder:
+      mvn clean package
+  It only lists the modules. Each service keeps its own independent pom.xml (no shared parent),
+  so every service can still be built, run and deployed on its own.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.ecommerce</groupId>
+    <artifactId>ecommerce-microservices</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>ecommerce-microservices (build all)</name>
+
+    <modules>
+        <module>discovery-server</module>
+        <module>api-gateway</module>
+        <module>user-service</module>
+        <module>admin-service</module>
+    </modules>
+</project>

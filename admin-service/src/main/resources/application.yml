@@ -1,0 +1,71 @@
+server:
+  port: 8082                      # direct access; normally clients go through the API Gateway on 8080
+  # Trust the X-Forwarded-* headers set by the API Gateway (correct Location headers behind the gateway)
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: admin-service
+
+  datasource:
+    # Own database: the Admin Service never touches user_service_db.
+    url: ${DB_URL:jdbc:mysql://localhost:3306/admin_service_db?createDatabaseIfNotExist=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}       # set as an environment variable in IntelliJ, don't hardcode it
+
+  data:
+    web:
+      pageable:
+        max-page-size: 50           # ?size=1000 is silently capped at 50
+  
+  jpa:
+    hibernate:
+      ddl-auto: update              # DEV ONLY
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+app:
+  jwt:
+    # MUST be the same secret as user-service: tokens are issued there and only verified here.
+    # Dev default below matches user-service's default. In real environments set JWT_SECRET
+    # to the same value for both services.
+    secret: ${JWT_SECRET:Zk9wM3VzZXItc2VydmljZS1sb2NhbC1kZXYtc2VjcmV0LWtleS0yMDI2IQ==}
+    issuer: user-service            # only accept tokens issued by the User Service
+
+# Register with the Eureka discovery server under the name "admin-service"
+eureka:
+  client:
+    # Set EUREKA_ENABLED=false to run this service alone (no discovery-server, no "Connection refused" logs)
+    enabled: ${EUREKA_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+    # Send the real /actuator/health status to Eureka (DOWN when MySQL is down),
+    # so the gateway stops routing to an unhealthy instance.
+    healthcheck:
+      enabled: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+
+# Actuator: expose ONLY health and info over HTTP (everything else stays hidden).
+# Eureka's dashboard link and health check point to these URLs.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never        # public endpoint: don't leak DB/disk details
+  info:
+    env:
+      enabled: true              # publish the "info.*" properties below at /actuator/info
+
+info:
+  app:
+    name: admin-service
+    description: E-commerce Admin Service (categories, products, stock, catalog)
+    version: 0.0.1-SNAPSHOT

@@ -1,0 +1,135 @@
+{
+  "info": {
+    "name": "E-commerce - Admin Service",
+    "description": "Admin Service API (via API Gateway, port 8080). Step 1: run 'Login as admin (User Service)': it stores {{adminToken}}. The user must have role ADMIN in user_service_db. Step 2: create a category, then products. Created ids are saved into {{categoryId}} / {{productId}} automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{adminToken}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api/v1" },
+    { "key": "userServiceUrl", "value": "http://localhost:8080/api/v1" },
+    { "key": "adminToken", "value": "" },
+    { "key": "categoryId", "value": "1" },
+    { "key": "productId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "0. Login as admin (User Service)",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "if (pm.response.code === 200) {",
+          "  const body = pm.response.json();",
+          "  pm.collectionVariables.set('adminToken', body.accessToken);",
+          "  pm.test('user is ADMIN', () => pm.expect(body.user.role).to.eql('ADMIN'));",
+          "}"
+        ]}
+      }],
+      "request": {
+        "auth": { "type": "noauth" },
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{userServiceUrl}}/auth/login",
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"soupik@example.com\",\n  \"password\": \"Secret123\"\n}" }
+      }
+    },
+    {
+      "name": "Admin - Categories",
+      "item": [
+        {
+          "name": "Create category",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "if (pm.response.code === 201) { pm.collectionVariables.set('categoryId', pm.response.json().id); }"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/admin/categories",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Electronics\",\n  \"description\": \"Phones, laptops and gadgets\"\n}" }
+          }
+        },
+        { "name": "Get all categories", "request": { "method": "GET", "url": "{{baseUrl}}/admin/categories" } },
+        { "name": "Get category by id", "request": { "method": "GET", "url": "{{baseUrl}}/admin/categories/{{categoryId}}" } },
+        {
+          "name": "Update category",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/admin/categories/{{categoryId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Electronics\",\n  \"description\": \"All electronic items\",\n  \"active\": true\n}" }
+          }
+        },
+        { "name": "Delete category (409 if it has products)", "request": { "method": "DELETE", "url": "{{baseUrl}}/admin/categories/{{categoryId}}" } }
+      ]
+    },
+    {
+      "name": "Admin - Products",
+      "item": [
+        {
+          "name": "Create product",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "if (pm.response.code === 201) { pm.collectionVariables.set('productId', pm.response.json().id); }"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/admin/products",
+            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"ph-001\",\n  \"name\": \"Smartphone X\",\n  \"description\": \"6.5 inch display, 128 GB\",\n  \"price\": 24999.00,\n  \"stockQuantity\": 50,\n  \"categoryId\": {{categoryId}},\n  \"imageUrl\": \"https://example.com/images/phone-x.jpg\"\n}" }
+          }
+        },
+        {
+          "name": "List products (filter + page + sort)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/admin/products?name=phone&minPrice=1000&maxPrice=50000&page=0&size=10&sort=price,desc",
+              "host": ["{{baseUrl}}"], "path": ["admin", "products"],
+              "query": [
+                { "key": "name", "value": "phone" },
+                { "key": "categoryId", "value": "{{categoryId}}", "disabled": true },
+                { "key": "minPrice", "value": "1000" },
+                { "key": "maxPrice", "value": "50000" },
+                { "key": "active", "value": "true", "disabled": true },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" },
+                { "key": "sort", "value": "price,desc" }
+              ]
+            }
+          }
+        },
+        { "name": "Get product by id", "request": { "method": "GET", "url": "{{baseUrl}}/admin/products/{{productId}}" } },
+        {
+          "name": "Update product",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/admin/products/{{productId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"sku\": \"PH-001\",\n  \"name\": \"Smartphone X (2026)\",\n  \"description\": \"6.5 inch display, 256 GB\",\n  \"price\": 27999.00,\n  \"categoryId\": {{categoryId}},\n  \"imageUrl\": \"https://example.com/images/phone-x.jpg\",\n  \"active\": true\n}" }
+          }
+        },
+        {
+          "name": "Adjust stock (+ add / - remove)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/admin/products/{{productId}}/stock",
+            "body": { "mode": "raw", "raw": "{\n  \"quantityChange\": -5\n}" }
+          }
+        },
+        { "name": "Low-stock products", "request": { "method": "GET", "url": "{{baseUrl}}/admin/products/low-stock?threshold=5" } },
+        { "name": "Deactivate product (soft delete)", "request": { "method": "DELETE", "url": "{{baseUrl}}/admin/products/{{productId}}" } }
+      ]
+    },
+    {
+      "name": "Public Catalog (no token)",
+      "item": [
+        { "name": "Active categories", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/catalog/categories" } },
+        { "name": "Browse products", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/catalog/products?page=0&size=10&sort=price,asc" } },
+        { "name": "Product details", "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/catalog/products/{{productId}}" } }
+      ]
+    }
+  ]
+}

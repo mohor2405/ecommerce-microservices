@@ -1,0 +1,69 @@
+server:
+  port: 8081                      # direct access; normally clients go through the API Gateway on 8080
+  # Trust the X-Forwarded-* headers set by the API Gateway, so generated links
+  # (e.g. the Location header) point to the gateway (8080), not to this service.
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: user-service            # becomes the service ID when Eureka is added later
+
+  datasource:
+    # Each microservice owns its own database ("database per service" pattern).
+    # createDatabaseIfNotExist=true lets MySQL create user_service_db on first start.
+    url: ${DB_URL:jdbc:mysql://localhost:3306/user_service_db?createDatabaseIfNotExist=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}     # set DB_PASSWORD as an environment variable, never commit it
+
+  jpa:
+    hibernate:
+      ddl-auto: update            # DEV ONLY: Hibernate creates/updates tables from entities
+    show-sql: true                # print SQL while learning; turn off in production
+    open-in-view: false           # close the DB session after the service layer (best practice)
+    properties:
+      hibernate:
+        format_sql: true
+
+# Actuator: expose ONLY health and info over HTTP (everything else stays hidden).
+# Eureka's dashboard link and health check point to these URLs.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never        # public endpoint: don't leak DB/disk details
+  info:
+    env:
+      enabled: true              # publish the "info.*" properties below at /actuator/info
+
+info:
+  app:
+    name: user-service
+    description: E-commerce User Service (registration, login, profile, addresses)
+    version: 0.0.1-SNAPSHOT
+
+app:
+  jwt:
+    # Base64-encoded 256-bit key used to sign tokens (HS256).
+    # The default below is for LOCAL DEVELOPMENT ONLY. In any shared/production
+    # environment set the JWT_SECRET env variable (generate one with: openssl rand -base64 32).
+    # Later, all services (or the API Gateway) will share this secret to validate tokens.
+    secret: ${JWT_SECRET:Zk9wM3VzZXItc2VydmljZS1sb2NhbC1kZXYtc2VjcmV0LWtleS0yMDI2IQ==}
+    expiration-ms: ${JWT_EXPIRATION_MS:3600000}   # 1 hour
+
+# Register with the Eureka discovery server under the name "user-service"
+eureka:
+  client:
+    # Set EUREKA_ENABLED=false to run this service alone (no discovery-server, no "Connection refused" logs)
+    enabled: ${EUREKA_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka}
+    # Send the real /actuator/health status to Eureka (DOWN when MySQL is down),
+    # so the gateway stops routing to an unhealthy instance.
+    healthcheck:
+      enabled: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10     # dev: heartbeat every 10 s (default 30)
